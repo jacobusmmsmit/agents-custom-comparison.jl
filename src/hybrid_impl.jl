@@ -3,6 +3,8 @@ using Agents
 
 include("simplified_core.jl")
 
+# Now shifting attention to the Agents.jl ABM
+
 # Agent type used in the ABM, a wrapper around EGT agents with ABM specific information.
 @agent ABMAgent{N} NoSpaceAgent begin
     egt_agent::Agent{N}
@@ -31,6 +33,17 @@ end
 end
 
 @inline evaluate(egt_agent::Agent{1}, information::Bool, model) = evaluate(egt_agent, Tuple(information), model)
+
+function agent_step!(donor::ABMAgent{N}, model) where {N}
+    # Find interaction partner from all other agents (well-mixed)
+    recipient_id = rand(1:length(model.reputations)) # Possible optimisation, precalculate all recipeints
+    while recipient_id == donor.id
+        recipient_id = rand(1:length(model.reputations))
+    end
+    recipient = model.agents[recipient_id]
+    pairwise_agent_step!(donor, recipient, model)
+    return nothing
+end
 
 function pairwise_agent_step!(donor, recipient, model)
     is_good = model.reputations[recipient.id]
@@ -73,8 +86,9 @@ end
 function complex_step!(model)
     model.cooperation_counter = 0
     model.step_counter += 1
-    f(d, r) = pairwise_agent_step!(d, r, model)
-    map_agent_groups(2, f)
+    for id in Schedulers.fastest(model)
+        agent_step!(model[id], model)
+    end
     if model.step_counter % model.reproduce_every == 0
         model_step!(model)
     end
