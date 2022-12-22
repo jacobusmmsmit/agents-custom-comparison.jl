@@ -74,7 +74,7 @@ function complex_step!(model)
     model.cooperation_counter = 0
     model.step_counter += 1
     f(d, r) = pairwise_agent_step!(d, r, model)
-    map_agent_groups(2, f)
+    map_agent_groups(2, f, model)
     if model.step_counter % model.reproduce_every == 0
         model_step!(model)
     end
