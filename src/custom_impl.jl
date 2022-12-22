@@ -41,7 +41,8 @@ end
     return outcome
 end
 
-@inline evaluate(agent::Agent{1}, information::Bool, model) = evaluate(agent, Tuple(information), model)
+@inline evaluate(agent::Agent{1}, information::Bool, model) =
+    evaluate(agent, Tuple(information), model)
 
 function agent_step!(donor_id::Integer, model)
     # Find interaction partner from all other agents (well-mixed)
@@ -72,7 +73,17 @@ function model_step!(model)
     # Choose two agents and let one reproduce with the Fermi update rule
     nagents = model.constants.nagents
     imitator_id, imitated_id = sample(1:nagents, 2)
-    imitation_probability = 1 / (1 + exp(-model.constants.selection_intensity * ((model.constants.utilities[imitated_id] - model.constants.utilities[imitator_id]) / model.constants.reproduce_every)))
+    imitation_probability =
+        1 / (
+            1 + exp(
+                -model.constants.selection_intensity * (
+                    (
+                        model.constants.utilities[imitated_id] -
+                        model.constants.utilities[imitator_id]
+                    ) / model.constants.reproduce_every
+                ),
+            )
+        )
     if rand(model.rng) < imitation_probability
         model.agents[imitator_id] = model.agents[imitated_id]
     end
@@ -81,7 +92,11 @@ function model_step!(model)
     # Randomly mutate an agent
     if rand(model.rng) < model.constants.mutation_probability
         mutated_id = rand(1:nagents)
-        model.agents[mutated_id] = Player(Strategy(rand(model.rng, 0:3)), model.agents[mutated_id].pm, model.agents[mutated_id].em)
+        model.agents[mutated_id] = Player(
+            Strategy(rand(model.rng, 0:3)),
+            model.agents[mutated_id].pm,
+            model.agents[mutated_id].em,
+        )
     end
     return nothing
 end
@@ -90,7 +105,9 @@ end
 function complex_step!(model)
     model.mutables.cooperation_counter = 0
     model.mutables.step_counter += 1
-    agent_step!.(1:model.constants.nagents, model)
+    for id = 1:model.constraints.nagents
+        agent_step!(id, model)
+    end
     if model.mutables.step_counter % model.constants.reproduce_every == 0
         model_step!(model)
     end
@@ -99,7 +116,7 @@ end
 function initialize(;
     numagents=50,
     norm::Norm=Norm(0),
-    strategies=[Strategy(rand(model.rng, 0:3)) for i in 1:numagents],
+    strategies=[Strategy(rand(model.rng, 0:3)) for i = 1:numagents],
     player_pm::PerceptionMistake{1},
     player_em::ExecutionMistake,
     judge_pm::PerceptionMistake{2},
@@ -113,7 +130,16 @@ function initialize(;
 )
     judge = Judge(norm, judge_pm, judge_em)
     mutables = ABMMutables(0, 0)
-    constants = ABMConstants(numagents, reputations, zeros(numagents), judge, params, selection_intensity, mutation_probability, reproduce_every)
+    constants = ABMConstants(
+        numagents,
+        reputations,
+        zeros(numagents),
+        judge,
+        params,
+        selection_intensity,
+        mutation_probability,
+        reproduce_every,
+    )
     rng = Random.MersenneTwister(seed)
     agents = [Player(strategy, player_pm, player_em) for strategy in strategies]
     model = ABM(agents, constants, mutables, rng)

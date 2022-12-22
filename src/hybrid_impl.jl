@@ -24,15 +24,17 @@ mutable struct ABMProperties
 end
 
 @inline function evaluate(egt_agent::Agent{N}, information::NTuple{N,Bool}, model) where {N}
-    perceived_information = map(information, egt_agent.pm.rates) do infobyte, misperception_rate
-        rand(model.rng) > misperception_rate ? infobyte : !infobyte
-    end
+    perceived_information =
+        map(information, egt_agent.pm.rates) do infobyte, misperception_rate
+            rand(model.rng) > misperception_rate ? infobyte : !infobyte
+        end
     intention = egt_agent.rule(perceived_information...)
     outcome = rand(model.rng) > egt_agent.em.rate ? intention : !intention
     return outcome
 end
 
-@inline evaluate(egt_agent::Agent{1}, information::Bool, model) = evaluate(egt_agent, Tuple(information), model)
+@inline evaluate(egt_agent::Agent{1}, information::Bool, model) =
+    evaluate(egt_agent, Tuple(information), model)
 
 function agent_step!(donor::ABMAgent{N}, model) where {N}
     # Find interaction partner from all other agents (well-mixed)
@@ -66,7 +68,13 @@ function model_step!(model)
     imitator_id, imitated_id = sample(1:length(model.reputations), 2)
     imitator = model.agents[imitator_id]
     imitated = model.agents[imitated_id]
-    imitation_probability = 1 / (1 + exp(-model.selection_intensity * ((imitated.utility - imitator.utility) / model.reproduce_every)))
+    imitation_probability =
+        1 / (
+            1 + exp(
+                -model.selection_intensity *
+                ((imitated.utility - imitator.utility) / model.reproduce_every),
+            )
+        )
     if rand(model.rng) < imitation_probability
         imitator.egt_agent = imitated.egt_agent
     end
@@ -77,7 +85,11 @@ function model_step!(model)
     # Randomly mutate an abm_agent
     if rand(model.rng) < model.mutation_probability
         mutated = random_agent(model)
-        mutated.egt_agent = Player(Strategy(rand(model.rng, 0:3)), mutated.egt_agent.pm, mutated.egt_agent.em)
+        mutated.egt_agent = Player(
+            Strategy(rand(model.rng, 0:3)),
+            mutated.egt_agent.pm,
+            mutated.egt_agent.em,
+        )
     end
     return nothing
 end
@@ -95,28 +107,39 @@ function complex_step!(model)
 end
 
 function initialize(;
-    numagents=50,
-    norm::Norm=Norm(0),
-    strategies=[Strategy(rand(model.rng, 0:3)) for i in 1:numagents],
+    numagents = 50,
+    norm::Norm = Norm(0),
+    strategies = [Strategy(rand(model.rng, 0:3)) for i = 1:numagents],
     player_pm::PerceptionMistake{1},
     player_em::ExecutionMistake,
     judge_pm::PerceptionMistake{2},
     judge_em::ExecutionMistake,
-    reputations=trues(numagents),
+    reputations = trues(numagents),
     params::SystemParameters,
-    selection_intensity=1.0,
-    mutation_probability=0.01,
-    reproduce_every=100,
-    seed=125
+    selection_intensity = 1.0,
+    mutation_probability = 0.01,
+    reproduce_every = 100,
+    seed = 125,
 )
     judge = Judge(norm, judge_pm, judge_em)
-    properties = ABMProperties(reputations, judge, params, selection_intensity, mutation_probability, reproduce_every, 0, 0.0)
+    properties = ABMProperties(
+        reputations,
+        judge,
+        params,
+        selection_intensity,
+        mutation_probability,
+        reproduce_every,
+        0,
+        0.0,
+    )
     rng = Random.MersenneTwister(seed)
     model = ABM(
         ABMAgent{1};
-        properties, rng, scheduler=Schedulers.Randomly() #TODO: fastest?
+        properties,
+        rng,
+        scheduler = Schedulers.Randomly(), #TODO: fastest?
     )
-    for n in 1:numagents
+    for n = 1:numagents
         egt_agent = Player(strategies[n], player_pm, player_em)
         abm_agent = ABMAgent{1}(n, egt_agent, 0.0)
         add_agent!(abm_agent, model)

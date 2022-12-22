@@ -18,63 +18,40 @@ begin # Setup
     benefit = 5
     cost = 1
 
-    params = SystemParameters(
-        benefit,
-        cost
-    )
+    params = SystemParameters(benefit, cost)
 
     numagents = 500
-    strategies = [Strategy(rand(1:3)) for i in 1:numagents]
+    strategies = [Strategy(rand(1:3)) for i = 1:numagents]
     # strategies = [Strategy(15) for i in 1:numagents]
 
     model = initialize(
-        numagents=numagents,
-        strategies=strategies,
-        norm=Norm(0),
-        player_pm=player_pm,
-        player_em=player_em,
-        judge_pm=judge_pm,
-        judge_em=judge_em,
-        params=params,
-        mutation_probability=0.1,
-        reproduce_every=2 * numagents
+        numagents = numagents,
+        strategies = strategies,
+        norm = Norm(0),
+        player_pm = player_pm,
+        player_em = player_em,
+        judge_pm = judge_pm,
+        judge_em = judge_em,
+        params = params,
+        mutation_probability = 0.1,
+        reproduce_every = 2 * numagents,
     )
 end
 
 @benchmark agent_step!(1, $model)
 @benchmark model_step!($model)
 
-nsteps = 500;
-nsaves = min(1000, nsteps)
-save_every = nsteps ÷ nsaves
-step_axis = save_every:save_every:nsteps # Used for plotting later
-begin # Run model and collect data
-    # Data to collect:
-    strat_freq = zeros(nsaves, 16)
-    rep_freq = zeros(nsaves, 2)
-    coop_freq = zeros(nsaves)
-    Profile.clear()
-    @time for step in 1:nsteps
-        ## Progress bar :)
-        # step % (nsteps // 10) == 0 && print("-")
-        # Step model
+function run!(model, nsteps)
+    for _ = 1:nsteps
         model.mutables.cooperation_counter = 0
         model.mutables.step_counter += 1
-        agent_step!.(1:length(model.agents), Ref(model))
-        model.mutables.step_counter % model.constants.reproduce_every == 0 && model_step!(model)
-
-        # Collect data
-        # if step % save_every == 0
-        #     save_step = step ÷ save_every
-        #     # println("Completion: $(100*save_step/nsaves)%")
-        #     coop_freq[save_step] = model.cooperation_counter / numagents
-        #     for strat in 0:15
-        #         strat_freq[save_step, strat+1] = count(ag -> ag.egt_agent.rule.int == strat, allagents(model)) / numagents
-        #     end
-        #     for (i, group) in enumerate((red, blue))
-        #         grouped = Iterators.filter(ag -> ag.group == group, allagents(model))
-        #         rep_freq[save_step, i] = mean(ag -> model.reputations[ag.id], grouped)
-        #     end
-        # end
+        for id = 1:model.constants.nagents
+            agent_step!(id, model)
+        end
+        model.mutables.step_counter % model.constants.reproduce_every == 0 &&
+            model_step!(model)
     end
 end
+
+nsteps = 500
+@benchmark run!($model, nsteps)

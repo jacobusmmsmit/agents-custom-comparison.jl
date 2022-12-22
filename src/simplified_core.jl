@@ -35,7 +35,8 @@ function read_bit(x, pos)
     return (x >> pos) & 1 != 0
 end
 
-(rule::SocialRule{N})(xs::Vararg{I,N}) where {N,I<:Integer} = read_bit(rule.int, evalpoly(2, xs))
+(rule::SocialRule{N})(xs::Vararg{I,N}) where {N,I<:Integer} =
+    read_bit(rule.int, evalpoly(2, xs))
 
 # Social rules are infallible, abstract concepts, but Agents are humans and make
 # mistakes. A mistake in this context means flipping a bit in one of two ways:
@@ -70,7 +71,11 @@ struct Agent{N}
     rule::SocialRule{N}
     pm::PerceptionMistake{N}
     em::ExecutionMistake
-    function Agent{N}(rule::SocialRule{N}, pm=PerceptionMistake(Tuple(0.0 for _ in 1:N)), em=ExecutionMistake(0.0)) where {N}
+    function Agent{N}(
+        rule::SocialRule{N},
+        pm = PerceptionMistake(Tuple(0.0 for _ = 1:N)),
+        em = ExecutionMistake(0.0),
+    ) where {N}
         new{N}(rule, pm, em)
     end
 end
